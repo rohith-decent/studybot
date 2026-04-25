@@ -1,18 +1,37 @@
-%PDF-1.4
-1 0 obj <</Type/Catalog/Pages 2 0 R>> endobj
-2 0 obj <</Type/Pages/Kids [3 0 R]/Count 1>> endobj
-3 0 obj <</Type/Page/Parent 2 0 R/MediaBox [0 0 612 792]/Contents 4 0 R/Resources <<>>>> endobj
-4 0 obj <</Length 21>> stream
-BT /F1 24 Tf 100 100 Td (Hello World) Tj ET
-endstream endobj
-xref
-0 5
-0000000000 65535 f 
-0000000009 00000 n 
-0000000052 00000 n 
-0000000109 00000 n 
-0000000201 00000 n 
-trailer <</Size 5/Root 1 0 R>>
-startxref
-273
-%%EOF
+Test Source: Introduction to Quantum Information Science
+Page 1: The Quantum Bit (Qubit)
+
+In classical computing, the fundamental unit of information is the bit, which exists in a state of either 0 or 1. Quantum computing introduces the Qubit. Unlike a classical bit, a qubit can exist in a Superposition of states. This means that until a measurement is performed, the qubit represents both 0 and 1 simultaneously, described mathematically by a wave function.
+
+The power of the qubit is further amplified by Entanglement. When two qubits become entangled, the state of one qubit becomes instantaneously correlated with the state of the other, regardless of the distance between them. Einstein famously referred to this as "spooky action at a distance." This phenomenon allows quantum computers to process complex datasets that would be impossible for binary systems to navigate.
+Page 2: Quantum Gates and Algorithms
+
+To perform calculations, quantum computers use Quantum Gates. While classical computers use logic gates (AND, OR, NOT), quantum gates manipulate the probability amplitudes of qubits.
+
+One of the most famous applications of this technology is Shor’s Algorithm. Developed by Peter Shor in 1994, this algorithm demonstrates that a quantum computer can factor large integers exponentially faster than the best-known classical algorithms. This has massive implications for Cryptography, as most modern security (RSA encryption) relies on the difficulty of integer factorization.
+
+Another key algorithm is Grover’s Algorithm, which provides a quadratic speedup for searching unsorted databases. If a classical search takes N steps, Grover's can find the result in approximately N​ steps.
+Page 3: Physical Challenges and Decoherence
+
+Building a stable quantum computer is a monumental engineering challenge. Qubits are extremely sensitive to their environment. Any interaction with external heat, electromagnetic fields, or vibrations can cause Quantum Decoherence.
+
+Decoherence is the process where quantum information is lost to the environment, causing the qubit to "collapse" back into a classical state of 0 or 1. To combat this, researchers use Cryogenics to cool quantum processors to temperatures near absolute zero (0 K or -273.15°C), which is colder than outer space.
+
+Current systems are in the NISQ Era (Noisy Intermediate-Scale Quantum). These devices have enough qubits to outperform classical computers at specific tasks but are still prone to high error rates and lack the "Fault Tolerance" required for universal computing.
+How to use this for testing:
+
+    Ingest it: Copy the text above into a PDF (or just a text file if your loader supports it) and upload it through your new sidebar.
+
+    Test "Study Mode": * Question: "What is the difference between bits and qubits?"
+
+        Expectation: It should explain superposition and ideally generate flashcards about qubits/bits at the end.
+
+    Test "Exam Mode":
+
+        Question: "How does temperature affect a quantum processor?"
+
+        Expectation: It should mention decoherence and the need for cryogenics/absolute zero.
+
+        Trick Question: "Who invented the first classical computer?"
+
+        Expectation: Since that isn't in the text, it should say: "I cannot find this in your study materials."
