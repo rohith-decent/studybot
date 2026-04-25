@@ -79,4 +79,15 @@ To maintain a scalable codebase, we follow a **Feature-Based Documentation** rul
 > 4. **Future Improvements.**
 
 ---
-
+## 7. folder structure
+/
+├── app/                # Next.js App Router (Routes, Layouts, API Endpoints)
+├── components/         # React UI Components (Atomic Design)
+├── docs/               # Your .md documentation files (SSOT)
+├── hooks/              # Custom React hooks (useChat, useUpload, useIntersection)
+├── lib/                # Third-party configurations (The "Plumbing")
+├── services/           # The "Business Logic" (Heavy Lifting)
+├── types/              # TypeScript interfaces/types (index.d.ts)
+├── public/             # Static assets (icons, images)
+├── .env                # Private API Keys (Excluded from Git)
+└── tailwind.config.ts  # Styling configuration
