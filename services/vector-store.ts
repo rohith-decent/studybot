@@ -1,18 +1,7 @@
-import { createClient } from "@supabase/supabase-js";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+import { getSupabase } from "@/lib/supabase";
 import { getEmbeddingModel } from "@/lib/gemini";
-import * as pdfjsLib from "pdfjs-dist";
-
-// Initialize Supabase client
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error(
-    "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables are required"
-  );
-}
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+import * as pdfjs from "pdfjs-dist/legacy/build/pdf.js";
 
 /**
  * Interface for document chunk metadata
@@ -44,129 +33,107 @@ export async function extractTextFromPDF(
   filename: string
 ): Promise<string> {
   try {
-    // Convert buffer to Uint8Array for pdfjs
-    const uint8Array = new Uint8Array(pdfBuffer);
-    const pdf = await pdfjsLib.getDocument({ data: uint8Array }).promise;
-
+    console.log(`Extracting text from ${filename} using direct pdfjs-dist@3.4.120...`);
+    
+    // Convert Buffer to Uint8Array
+    const data = new Uint8Array(pdfBuffer);
+    
+    // Load the PDF document
+    // disableWorker: true is often better for simple Node.js environments
+    const loadingTask = (pdfjs as any).getDocument({
+      data,
+      disableWorker: true,
+      verbosity: 0,
+    });
+    
+    const pdf = await loadingTask.promise;
+    console.log(`PDF loaded: ${pdf.numPages} pages`);
+    
     let fullText = "";
-
-    for (let i = 0; i < pdf.numPages; i++) {
-      const page = await pdf.getPage(i + 1);
+    
+    // Iterate through pages
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
       const textContent = await page.getTextContent();
+      
       const pageText = textContent.items
         .map((item: any) => item.str)
         .join(" ");
-      fullText += `\n[Page ${i + 1}]\n${pageText}`;
+        
+      fullText += `\n[Page ${i}]\n${pageText}`;
+      
+      // Manual cleanup for each page
+      if (page.cleanup) page.cleanup();
     }
+    
+    // Final cleanup
+    await pdf.destroy();
 
+    console.log(`Successfully extracted ${fullText.length} characters from ${filename}`);
     return fullText;
   } catch (error) {
     console.error("Error extracting text from PDF:", error);
-    throw new Error(`Failed to extract text from PDF: ${filename}`);
+    throw new Error(`Failed to extract text from PDF: ${filename}. ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
 /**
  * Split text into chunks with overlap
- * Custom implementation for recursive text splitting
+ * Uses LangChain's RecursiveCharacterTextSplitter for intelligent chunking
  * @param text - The full text to split
  * @param chunkSize - Size of each chunk in characters (default: 1000)
  * @param overlapSize - Overlap between chunks in characters (default: 200)
  * @returns Array of text chunks
  */
-export function splitTextIntoChunks(
+export async function splitTextIntoChunks(
   text: string,
   chunkSize: number = 1000,
   overlapSize: number = 200
-): string[] {
-  const chunks: string[] = [];
+): Promise<string[]> {
+  const splitter = new RecursiveCharacterTextSplitter({
+    chunkSize,
+    chunkOverlap: overlapSize,
+    separators: ["\n\n", "\n", " ", ""],
+  });
 
-  // Split by double newlines first (paragraphs)
-  const paragraphs = text.split("\n\n").filter((p) => p.trim().length > 0);
-
-  let currentChunk = "";
-
-  for (const paragraph of paragraphs) {
-    // If adding this paragraph would exceed chunk size, save current chunk and start new one
-    if (
-      currentChunk.length + paragraph.length + 2 > chunkSize &&
-      currentChunk.length > 0
-    ) {
-      chunks.push(currentChunk.trim());
-
-      // Create overlap by including last 200 chars from previous chunk
-      const overlapStart = Math.max(0, currentChunk.length - overlapSize);
-      currentChunk = currentChunk.substring(overlapStart);
-    }
-
-    currentChunk += (currentChunk.length > 0 ? "\n\n" : "") + paragraph;
-  }
-
-  // Add the last chunk
-  if (currentChunk.trim().length > 0) {
-    chunks.push(currentChunk.trim());
-  }
-
-  // If we got chunks smaller than ideal, try splitting sentences within chunks
-  const finalChunks: string[] = [];
-  for (const chunk of chunks) {
-    if (chunk.length > chunkSize * 1.5) {
-      // Split large chunks by sentences
-      const sentences = chunk.match(/[^.!?]+[.!?]+/g) || [chunk];
-      let subChunk = "";
-
-      for (const sentence of sentences) {
-        if (subChunk.length + sentence.length > chunkSize && subChunk.length > 0) {
-          finalChunks.push(subChunk.trim());
-          // Create overlap
-          const overlapStart = Math.max(0, subChunk.length - overlapSize);
-          subChunk = subChunk.substring(overlapStart) + sentence;
-        } else {
-          subChunk += sentence;
-        }
-      }
-
-      if (subChunk.trim().length > 0) {
-        finalChunks.push(subChunk.trim());
-      }
-    } else {
-      finalChunks.push(chunk);
-    }
-  }
-
-  return finalChunks.length > 0 ? finalChunks : [text];
+  const chunks = await splitter.splitText(text);
+  return chunks;
 }
 
 /**
  * Generate embeddings for text chunks using Gemini
+ * Processes in batches to avoid rate limits and timeouts
  * @param chunks - Array of text chunks
  * @returns Array of embeddings (768-dimensional vectors)
  */
 export async function generateEmbeddings(chunks: string[]): Promise<number[][]> {
   const embeddingModel = getEmbeddingModel();
-  const embeddings: number[][] = [];
+  const batchSize = 5; // Small batches for reliability
+  const allEmbeddings: number[][] = [];
 
-  // Process in batches to avoid rate limiting
-  const batchSize = 5;
-  for (let i = 0; i < chunks.length; i += batchSize) {
-    const batch = chunks.slice(i, i + batchSize);
+  try {
+    console.log(`Generating embeddings for ${chunks.length} chunks in batches of ${batchSize}...`);
+    
+    for (let i = 0; i < chunks.length; i += batchSize) {
+      const batch = chunks.slice(i, i + batchSize);
+      console.log(`Processing batch ${Math.floor(i / batchSize) + 1} of ${Math.ceil(chunks.length / batchSize)}...`);
+      
+      const batchEmbeddings = await embeddingModel.embedDocuments(batch);
+      allEmbeddings.push(...batchEmbeddings);
+      
+      // Small delay between batches to be nice to the API
+      if (i + batchSize < chunks.length) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
 
-    const batchEmbeddings = await Promise.all(
-      batch.map(async (chunk) => {
-        try {
-          const result = await embeddingModel.embedContent(chunk);
-          return result.embedding.values;
-        } catch (error) {
-          console.error("Error embedding chunk:", error);
-          throw error;
-        }
-      })
+    return allEmbeddings;
+  } catch (error) {
+    console.error("Error generating embeddings:", error);
+    throw new Error(
+      `Failed to generate embeddings: ${error instanceof Error ? error.message : String(error)}`
     );
-
-    embeddings.push(...batchEmbeddings);
   }
-
-  return embeddings;
 }
 
 /**
@@ -193,8 +160,9 @@ export async function saveToSupabase(
   }));
 
   // Insert into Supabase
-  const { error } = await supabase
-    .from("documents")
+  const supabase = getSupabase();
+  const { error } = await (supabase
+    .from("documents") as any) // eslint-disable-line @typescript-eslint/no-explicit-any
     .insert(documents);
 
   if (error) {
@@ -228,11 +196,20 @@ export async function ingestPDF(
     // Step 1: Extract text from PDF
     console.log("Extracting text from PDF...");
     const text = await extractTextFromPDF(pdfBuffer, filename);
+    
+    if (!text || text.trim().length === 0) {
+      return {
+        success: false,
+        chunksCreated: 0,
+        message: `No readable text found in ${filename}. It might be an image-based PDF or encrypted.`,
+      };
+    }
+    
     console.log(`Extracted ${text.length} characters from PDF`);
 
     // Step 2: Split text into chunks
     console.log("Splitting text into chunks...");
-    const chunks = splitTextIntoChunks(text, 1000, 200);
+    const chunks = await splitTextIntoChunks(text, 1000, 200);
     console.log(`Created ${chunks.length} chunks`);
 
     // Step 3: Generate embeddings
