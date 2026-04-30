@@ -1,4 +1,4 @@
-import { google } from '@ai-sdk/google';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { streamText } from 'ai';
 import { createClient } from '@supabase/supabase-js';
 import { getEmbeddingModel } from '@/lib/gemini';
@@ -61,7 +61,12 @@ export async function POST(req: Request) {
       Strictly avoid using outside knowledge.`;
     }
 
-    // 5. Stream the response back to your Frontend
+    // 5. Initialize the Google Provider with your GEMINI_API_KEY
+    const google = createGoogleGenerativeAI({
+      apiKey: process.env.GEMINI_API_KEY,
+    });
+
+    // 6. Stream the response back to your Frontend
     const result = await streamText({
       model: google('gemini-1.5-flash'),
       system: systemPrompt,
