@@ -173,7 +173,7 @@ export default function ChatSection({
           </button>
         </form>
         <p className="text-[10px] text-center text-gray-400 mt-4 uppercase tracking-[0.2em] font-semibold">
-          Powered by Gemini 1.5 Flash • Vector Search Enabled
+          Powered by Gemini 2.5 Flash • Vector Search Enabled
         </p>
       </div>
     </div>

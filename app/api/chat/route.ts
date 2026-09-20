@@ -68,7 +68,7 @@ export async function POST(req: Request) {
 
     // 6. Stream the response back to your Frontend
     const result = await streamText({
-      model: google('gemini-1.5-flash'),
+      model: google('gemini-2.5-flash'),
       system: systemPrompt,
       messages: coreMessages,
     });

@@ -10,7 +10,9 @@ export default function Home() {
   const [files, setFiles] = useState<string[]>([]);
   const [input, setInput] = useState("");
 
-  const { messages, sendMessage, status } = useChat();
+  const { messages, append, status } = useChat({
+    api: '/api/chat',
+  });
 
   const isLoading = status === 'submitted' || status === 'streaming';
 
@@ -18,10 +20,17 @@ export default function Home() {
     setInput(e.target.value);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
-    sendMessage({ text: input }, { body: { mode } });
+    
+    await append({
+      role: 'user',
+      content: input,
+    }, {
+      body: { mode }
+    });
+    
     setInput("");
   };
 

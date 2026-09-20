@@ -25,7 +25,7 @@ export function getEmbeddingModel() {
 }
 
 /**
- * Get the generative model instance (Gemini 1.5 Flash).
+ * Get the generative model instance (Gemini 2.5 Flash).
  * Used for the actual chat response generation.
  */
 export function getGenerativeModel() {
@@ -36,7 +36,7 @@ export function getGenerativeModel() {
 
   return new ChatGoogleGenerativeAI({
     apiKey: apiKey,
-    model: "gemini-2.0-flash",
+    model: "gemini-2.5-flash",
     temperature: 0.7,
   });
 }
